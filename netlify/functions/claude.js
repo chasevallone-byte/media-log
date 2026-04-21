@@ -5,9 +5,7 @@ exports.handler = async function(event) {
 
   try {
     const body = JSON.parse(event.body);
-    
-    console.log('API Key present:', !!process.env.ANTHROPIC_API_KEY);
-    console.log('API Key prefix:', process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.substring(0, 10) : 'MISSING');
+    body.model = 'claude-sonnet-4-5';
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
