@@ -5,6 +5,10 @@ exports.handler = async function(event) {
 
   try {
     const body = JSON.parse(event.body);
+    
+    console.log('API Key present:', !!process.env.ANTHROPIC_API_KEY);
+    console.log('API Key prefix:', process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.substring(0, 10) : 'MISSING');
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -16,14 +20,25 @@ exports.handler = async function(event) {
     });
 
     const data = await response.json();
+    
+    console.log('Anthropic status:', response.status);
+    if (!response.ok) {
+      console.log('Anthropic error:', JSON.stringify(data));
+    }
+
     return {
       statusCode: response.status,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
       body: JSON.stringify(data)
     };
   } catch (err) {
+    console.log('Function error:', err.message);
     return {
       statusCode: 500,
+      headers: { 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({ error: err.message })
     };
   }
