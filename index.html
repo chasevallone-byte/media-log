@@ -291,6 +291,7 @@ async function loadAll() {
     entries = e||[]; inProgress = p||[]; watchlist = w||[]; pastRecs = r||[];
   } catch(err) { console.error('Load error',err); }
   document.getElementById('f-completed').value = today();
+  document.getElementById('f-started').value = today();
   document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('main-app').style.display = 'block';
   renderAll();
