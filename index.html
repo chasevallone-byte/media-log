@@ -141,6 +141,9 @@
   .note-sheet h3 { font-size: 15px; font-weight: 600; }
   .note-sheet-actions { display: flex; gap: 8px; }
   .note-sheet-actions .btn { flex: 1; text-align: center; }
+  .doom-overlay { position: fixed; inset: 0; background: #000; z-index: 300; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+  .doom-overlay.show { opacity: 1; pointer-events: all; }
+  .doom-overlay img { max-width: 100%; max-height: 100vh; object-fit: contain; }
 </style>
 </head>
 <body>
@@ -187,6 +190,10 @@
 </div>
 
 <button class="fab" id="fab" onclick="openNoteSheet()">+</button>
+
+<div class="doom-overlay" id="doom-overlay">
+  <img src="https://spcdn.shortpixel.ai/spio/ret_img,q_cdnize/comicsarcheology.com/wp-content/uploads/2024/08/image031-FF311.jpg" alt="Doctor Doom: I found it beneath me" />
+</div>
 
 <div class="app" style="display:none;" id="main-app">
   <h1>Media Log <span class="sync-dot" id="sync-dot"></span></h1>
@@ -494,7 +501,8 @@ async function finishEntry(id) {
     entries.unshift({id:Date.now(),title:item.title,type:item.type,rating,startDate:item.startDate||null,completedDate:completedVal||null,mood:'',notes:summary,loggedDate:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})});
     inProgress=inProgress.filter(i=>i.id!==id);
     await Promise.all([save('entries'),save('progress')]);
-    updateCounts(); renderLibrary(); renderProgress(); updateFab(); switchTab('library');
+    showDoom();
+    setTimeout(()=>{ updateCounts(); renderLibrary(); renderProgress(); updateFab(); switchTab('library'); },2800);
   } catch(e){statusEl.textContent='Something went wrong. Try again.';}
 }
 
@@ -718,6 +726,12 @@ function switchTab(name){
   document.getElementById('tab-'+name).classList.add('active');
   if(name==='recommend')renderTonightList();
 }
+function showDoom(){
+  const overlay=document.getElementById('doom-overlay');
+  overlay.classList.add('show');
+  setTimeout(()=>overlay.classList.remove('show'),2500);
+}
+
 function checkPassword(){
   const pw=document.getElementById('login-pw').value;
   if(pw==='GutsGriffith69!'){
