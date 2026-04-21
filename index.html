@@ -359,7 +359,8 @@ function setRating(v) {
 }
 
 function clearForm() {
-  ['f-title','f-notes','f-mood','f-started'].forEach(id=>document.getElementById(id).value='');
+  ['f-title','f-notes','f-mood'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-started').value=today();
   document.getElementById('f-type').value='movie';
   document.getElementById('f-completed').value=today();
   currentRating=0;
@@ -568,7 +569,7 @@ function renderTonightList() {
   empty.style.display='none';
   container.innerHTML = active.map(w=>`
     <div class="tonight-item">
-      <input type="checkbox" class="tonight-check" id="tn-${w.id}" />
+      <input type="checkbox" class="tonight-check" id="tn-${w.id}" checked />
       <label class="tonight-label" for="tn-${w.id}">${w.title}</label>
       <span class="tonight-type">${TL[w.type]}</span>
     </div>`).join('');
