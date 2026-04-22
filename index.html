@@ -72,7 +72,7 @@
   .note-time { font-size: 11px; color: #555; white-space: nowrap; }
   .note-del { background: none; border: none; cursor: pointer; color: #555; font-size: 14px; padding: 0; line-height: 1; }
   .note-input-row { display: flex; gap: 8px; margin-top: 10px; }
-  .note-input-row input { flex: 1; }
+  .note-input-row textarea { flex: 1; }
   .finish-zone { margin-top: 14px; padding-top: 14px; border-top: 1px solid #2a2a2a; }
   .finish-stars { display: flex; gap: 6px; margin: 8px 0 12px; }
   .finish-star { font-size: 24px; cursor: pointer; color: #333; transition: color 0.1s; -webkit-tap-highlight-color: transparent; }
@@ -405,6 +405,11 @@ function addEntry() {
   const title = document.getElementById('f-title').value.trim();
   if (!title) { document.getElementById('log-msg').textContent='Please enter a title.'; return; }
   if (!currentRating) { document.getElementById('log-msg').textContent='Please set a rating.'; return; }
+  const dup=entries.find(e=>e.title.toLowerCase()===title.toLowerCase());
+  if(dup){
+    const proceed=confirm(`"${title}" is already in your library. Add it anyway?`);
+    if(!proceed)return;
+  }
   entries.unshift({ id:Date.now(), title, type:document.getElementById('f-type').value, rating:currentRating,
     startDate:document.getElementById('f-started').value||null, completedDate:document.getElementById('f-completed').value||null,
     mood:document.getElementById('f-mood').value.trim(), notes:document.getElementById('f-notes').value.trim(),
@@ -417,6 +422,13 @@ function addEntry() {
 function startInProgress() {
   const title = document.getElementById('f-title').value.trim();
   if (!title) { document.getElementById('log-msg').textContent='Please enter a title first.'; return; }
+  const dupLib=entries.find(e=>e.title.toLowerCase()===title.toLowerCase());
+  const dupProg=inProgress.find(i=>i.title.toLowerCase()===title.toLowerCase());
+  if(dupLib||dupProg){
+    const where=dupLib?'your library':'in progress already';
+    const proceed=confirm(`"${title}" is already in ${where}. Add it anyway?`);
+    if(!proceed)return;
+  }
   inProgress.unshift({ id:Date.now(), title, type:document.getElementById('f-type').value,
     startDate:document.getElementById('f-started').value||today(), notes:[],
     startedDisplay:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) });
@@ -465,6 +477,39 @@ function saveEdit(id) {
   entry.mood=document.getElementById('em-'+id).value.trim();
   entry.notes=document.getElementById('en-'+id).value.trim();
   save('entries'); renderLibrary();
+}
+
+// ── Edit in progress ─────────────────────────────────────────────
+function toggleEditProgress(id) {
+  const item=inProgress.find(i=>i.id===id); if(!item)return;
+  const existing=document.getElementById('edit-prog-'+id);
+  if(existing){existing.remove();return;}
+  const card=document.getElementById('prog-card-'+id);
+  if(!card)return;
+  const form=document.createElement('div');
+  form.id='edit-prog-'+id;
+  form.style.cssText='margin-top:12px;padding-top:12px;border-top:1px solid #2a2a2a;display:flex;flex-direction:column;gap:10px;';
+  form.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <div class="fg full"><label>Title</label><input type="text" id="ept-${id}" value="${item.title.replace(/"/g,'&quot;')}" /></div>
+    <div class="fg full"><label>Type</label><select id="epy-${id}">
+      <option value="movie" ${item.type==='movie'?'selected':''}>Movie</option>
+      <option value="tv" ${item.type==='tv'?'selected':''}>TV show</option>
+      <option value="book" ${item.type==='book'?'selected':''}>Book</option>
+      <option value="comic" ${item.type==='comic'?'selected':''}>Comic book</option>
+      <option value="game" ${item.type==='game'?'selected':''}>Video game</option>
+    </select></div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-primary btn-sm" onclick="saveEditProgress(${id})">Save</button>
+    <button class="btn btn-secondary btn-sm" onclick="toggleEditProgress(${id})">Cancel</button>
+  </div>`;
+  card.appendChild(form);
+}
+function saveEditProgress(id) {
+  const item=inProgress.find(i=>i.id===id); if(!item)return;
+  item.title=document.getElementById('ept-'+id).value.trim()||item.title;
+  item.type=document.getElementById('epy-'+id).value;
+  save('progress'); renderProgress();
 }
 
 // ── In progress ───────────────────────────────────────────────────
@@ -589,7 +634,7 @@ function renderProgress(){
   const list=document.getElementById('progress-list');
   if(!inProgress.length){list.innerHTML='<div class="empty">Nothing in progress. Start something from the Log entry tab.</div>';return;}
   list.innerHTML=inProgress.map(item=>`
-    <div class="card inprog">
+    <div class="card inprog" id="prog-card-${item.id}">
       <div class="card-top">
         <div style="flex:1">
           <div class="card-title">${item.title}</div>
@@ -599,7 +644,10 @@ function renderProgress(){
             <span style="font-size:11px;color:#555">Started ${item.startedDisplay||''}</span>
           </div>
         </div>
-        <button class="btn-abandon" onclick="abandonInProgress(${item.id})">Abandon</button>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-edit" onclick="toggleEditProgress(${item.id})">Edit</button>
+          <button class="btn-abandon" onclick="abandonInProgress(${item.id})">Abandon</button>
+        </div>
       </div>
       <div class="note-thread">${item.notes.map((n,i)=>`
         <div class="note-item">
@@ -610,9 +658,9 @@ function renderProgress(){
           </span>
         </div>`).join('')}
       </div>
-      <div class="note-input-row">
-        <input type="text" id="ni-${item.id}" placeholder="Add a thought..." onkeydown="if(event.key==='Enter')addNote(${item.id})" />
-        <button class="btn btn-secondary btn-sm" onclick="addNote(${item.id})">Add</button>
+      <div class="note-input-row" style="flex-direction:column;gap:6px;">
+        <textarea id="ni-${item.id}" placeholder="Add a thought..." rows="2" style="min-height:60px;resize:vertical;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addNote(${item.id})}"></textarea>
+        <button class="btn btn-secondary btn-sm" style="align-self:flex-end;" onclick="addNote(${item.id})">Add note</button>
       </div>
       <div class="finish-zone">
         <label style="display:block;margin-bottom:4px;">Done? Rate it and generate your writeup.</label>
@@ -629,8 +677,15 @@ function renderProgress(){
 }
 function renderLibrary(){
   const list=document.getElementById('entry-list');
-  const filtered=currentFilter==='all'?entries:entries.filter(e=>e.type===currentFilter);
+  let filtered=currentFilter==='all'?[...entries]:entries.filter(e=>e.type===currentFilter);
   if(!filtered.length){list.innerHTML='<div class="empty">No entries yet.</div>';return;}
+  // Sort by completion date descending, no date → bottom
+  filtered.sort((a,b)=>{
+    if(!a.completedDate&&!b.completedDate)return 0;
+    if(!a.completedDate)return 1;
+    if(!b.completedDate)return -1;
+    return b.completedDate.localeCompare(a.completedDate);
+  });
   const groups={},standalone=[];
   filtered.forEach(e=>{const s=getSeriesName(e.title);if(s){if(!groups[s])groups[s]=[];groups[s].push(e);}else standalone.push(e);});
   const seriesNames=Object.keys(groups).filter(s=>groups[s].length>=2).sort();
