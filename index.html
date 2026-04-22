@@ -680,16 +680,31 @@ function renderLibrary(){
   let filtered=currentFilter==='all'?[...entries]:entries.filter(e=>e.type===currentFilter);
   if(!filtered.length){list.innerHTML='<div class="empty">No entries yet.</div>';return;}
   // Sort by completion date descending, no date → bottom
-  filtered.sort((a,b)=>{
-    if(!a.completedDate&&!b.completedDate)return 0;
-    if(!a.completedDate)return 1;
-    if(!b.completedDate)return -1;
-    return b.completedDate.localeCompare(a.completedDate);
-  });
+  function sortByDate(arr) {
+    return arr.slice().sort((a,b)=>{
+      if(!a.completedDate&&!b.completedDate)return 0;
+      if(!a.completedDate)return 1;
+      if(!b.completedDate)return -1;
+      return b.completedDate.localeCompare(a.completedDate);
+    });
+  }
+  filtered = sortByDate(filtered);
   const groups={},standalone=[];
   filtered.forEach(e=>{const s=getSeriesName(e.title);if(s){if(!groups[s])groups[s]=[];groups[s].push(e);}else standalone.push(e);});
-  const seriesNames=Object.keys(groups).filter(s=>groups[s].length>=2).sort();
+  // Sort entries within each series group by date
+  Object.keys(groups).forEach(s=>{ groups[s]=sortByDate(groups[s]); });
+  // Only group series with 2+ entries; singles go to standalone
+  const seriesNames=Object.keys(groups).filter(s=>groups[s].length>=2);
   Object.keys(groups).filter(s=>groups[s].length<2).forEach(s=>standalone.push(...groups[s]));
+  // Sort series groups by their most recent completion date
+  seriesNames.sort((a,b)=>{
+    const aDate=groups[a].find(e=>e.completedDate)?.completedDate||'';
+    const bDate=groups[b].find(e=>e.completedDate)?.completedDate||'';
+    if(!aDate&&!bDate)return 0;
+    if(!aDate)return 1;
+    if(!bDate)return -1;
+    return bDate.localeCompare(aDate);
+  });
   let html='';
   seriesNames.forEach(name=>{
     const items=groups[name],collapsed=collapsedSeries.has(name);
