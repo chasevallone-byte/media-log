@@ -679,44 +679,13 @@ function renderLibrary(){
   const list=document.getElementById('entry-list');
   let filtered=currentFilter==='all'?[...entries]:entries.filter(e=>e.type===currentFilter);
   if(!filtered.length){list.innerHTML='<div class="empty">No entries yet.</div>';return;}
-  // Sort by completion date descending, no date → bottom
-  function sortByDate(arr) {
-    return arr.slice().sort((a,b)=>{
-      if(!a.completedDate&&!b.completedDate)return 0;
-      if(!a.completedDate)return 1;
-      if(!b.completedDate)return -1;
-      return b.completedDate.localeCompare(a.completedDate);
-    });
-  }
-  filtered = sortByDate(filtered);
-  const groups={},standalone=[];
-  filtered.forEach(e=>{const s=getSeriesName(e.title);if(s){if(!groups[s])groups[s]=[];groups[s].push(e);}else standalone.push(e);});
-  // Sort entries within each series group by date
-  Object.keys(groups).forEach(s=>{ groups[s]=sortByDate(groups[s]); });
-  // Only group series with 2+ entries; singles go to standalone
-  const seriesNames=Object.keys(groups).filter(s=>groups[s].length>=2);
-  Object.keys(groups).filter(s=>groups[s].length<2).forEach(s=>standalone.push(...groups[s]));
-  // Sort series groups by their most recent completion date
-  seriesNames.sort((a,b)=>{
-    const aDate=groups[a].find(e=>e.completedDate)?.completedDate||'';
-    const bDate=groups[b].find(e=>e.completedDate)?.completedDate||'';
-    if(!aDate&&!bDate)return 0;
-    if(!aDate)return 1;
-    if(!bDate)return -1;
-    return bDate.localeCompare(aDate);
+  filtered.sort((a,b)=>{
+    if(!a.completedDate&&!b.completedDate)return 0;
+    if(!a.completedDate)return 1;
+    if(!b.completedDate)return -1;
+    return b.completedDate.localeCompare(a.completedDate);
   });
-  let html='';
-  seriesNames.forEach(name=>{
-    const items=groups[name],collapsed=collapsedSeries.has(name);
-    html+=`<div class="series-header" onclick="toggleSeries('${name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">
-      <span>${name} <span style="font-size:11px;font-weight:400;color:#666">${items.length} entries</span></span>
-      <span style="font-size:11px;color:#555">${collapsed?'▸ Show':'▾ Hide'}</span>
-    </div><div class="series-entries${collapsed?' collapsed':''}">
-      ${items.map(e=>entryCardHTML(e)).join('')}
-    </div>`;
-  });
-  standalone.forEach(e=>{html+=entryCardHTML(e);});
-  list.innerHTML=html;
+  list.innerHTML=filtered.map(e=>entryCardHTML(e)).join('');
 }
 function entryCardHTML(e){
   return `<div class="card" id="card-${e.id}">
