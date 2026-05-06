@@ -540,7 +540,7 @@ async function finishEntry(id) {
   const existingWriteups=entries.filter(e=>e.notes&&e.notes.length>60).slice(0,5).map(e=>`"${e.notes}"`).join('\n');
   const notesList=item.notes.map((n,i)=>`${i+1}. ${n.text}`).join('\n');
   const styleGuide=existingWriteups?`Match the tone, length, and style of these existing entries:\n${existingWriteups}\n\nDo not use bullet points. Write in the same voice.`:`Write a short, personal, conversational paragraph. No bullet points.`;
-  const prompt=`Summarize someone's running notes into a final writeup for their personal media log.\n\nTitle: ${item.title}\nType: ${TL[item.type]}\nRating: ${rating}/5\n\nRunning notes:\n${notesList}\n\n${styleGuide}\n\nWrite only the final summary paragraph.`;
+  const prompt=`Summarize someone's running notes into a final writeup for their personal media log.\n\nTitle: ${item.title}\nType: ${TL[item.type]}\nRating: ${rating}/5\n\nRunning notes:\n${notesList}\n\n${styleGuide}\n\nImportant rules for tone:\n- Lead with the overall experience and what the person enjoyed\n- A high rating (4-5 stars) means they loved it — write accordingly\n- If there are minor criticisms in the notes, treat them as small footnotes, not the focus\n- Never let a minor gripe overshadow genuine enthusiasm\n- Match the emotional tone to the rating — a 5-star entry should feel like a 5-star writeup\n\nWrite only the final summary paragraph.`;
   try {
     const summary=await callClaude(prompt);
     entries.unshift({id:Date.now(),title:item.title,type:item.type,rating,startDate:item.startDate||null,completedDate:completedVal||null,mood:'',notes:summary,loggedDate:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})});
