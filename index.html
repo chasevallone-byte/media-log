@@ -313,9 +313,29 @@ async function dbGet(type) {
 async function dbSet(type, data) {
   setSyncDot('syncing');
   const id = type==='entries'?1:type==='progress'?2:type==='watchlist'?3:4;
-  await fetch(`${API}?type=eq.${type}`, { method:'DELETE', headers: HEADERS });
-  const res = await fetch(API, { method:'POST', headers:{...HEADERS,'Prefer':'return=minimal'}, body:JSON.stringify({id,type,data,updated_at:new Date().toISOString()}) });
-  if (res.ok) { setSyncDot('ok'); setTimeout(()=>setSyncDot(''),2000); } else setSyncDot('error');
+  try {
+    // Check if row exists first
+    const check = await fetch(`${API}?type=eq.${type}&select=id`, { headers: HEADERS });
+    const rows = await check.json();
+    let res;
+    if (rows.length > 0) {
+      // Update existing row — never deletes data
+      res = await fetch(`${API}?type=eq.${type}`, {
+        method: 'PATCH',
+        headers: { ...HEADERS, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ data, updated_at: new Date().toISOString() })
+      });
+    } else {
+      // Insert new row
+      res = await fetch(API, {
+        method: 'POST',
+        headers: { ...HEADERS, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ id, type, data, updated_at: new Date().toISOString() })
+      });
+    }
+    if (res.ok) { setSyncDot('ok'); setTimeout(()=>setSyncDot(''),2000); }
+    else { setSyncDot('error'); }
+  } catch(e) { setSyncDot('error'); }
 }
 
 async function loadAll() {
