@@ -566,7 +566,7 @@ async function finishEntry(id) {
     : totalNoteWords < 80
     ? 'Write 2-3 sentences. Stop when you have covered the notes. Do not pad.'
     : 'Write a paragraph proportional to the notes. Do not exceed what the notes actually cover.';
-  const prompt=`You are helping someone write personal media log entries in their own voice. Turn their running notes into a final writeup.
+  const prompt=`You are turning someone's personal reading/watching notes into a final log entry in their own voice.
 
 Title: ${item.title}
 Type: ${TL[item.type]}
@@ -577,12 +577,18 @@ ${notesList}
 
 ${styleGuide}
 
+CRITICAL RULES — these override everything else:
+- Your job is to faithfully represent what the person actually wrote, not to add your own take
+- Every specific thing they mentioned (characters, art, scenes, comparisons, feelings) must appear in the writeup
+- Do NOT generalize specific observations into vague praise — if they mentioned a specific character, artist, or moment, keep it specific
+- Do NOT invent or add anything that is not in the notes
+- Do NOT replace their specific points with generic reviewer language
+
 TONE RULES:
 - Write in first person, past tense, like telling a friend what you thought
-- Match emotional energy to the rating — a 5-star entry should feel like genuine enthusiasm, not a review
-- Lead with what you enjoyed or felt, not a plot summary
-- Minor criticisms are footnotes, not headlines — never let a small gripe define a positive entry
-- Be direct and personal, not critical or journalistic
+- Match emotional energy to the rating — a 5-star entry should feel like genuine enthusiasm
+- Lead with what they enjoyed or felt, not a plot summary
+- Minor criticisms are footnotes, not headlines
 
 BANNED PHRASES — never use these:
 - "exactly the kind of"
@@ -597,6 +603,8 @@ BANNED PHRASES — never use these:
 - "proves why"
 - "reinforces why"
 - "continues to prove"
+- "fresh start"
+- "honors the core"
 
 SENTENCE VARIETY — do not start consecutive sentences with the same word or structure.
 
