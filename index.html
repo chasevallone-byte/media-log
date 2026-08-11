@@ -602,6 +602,47 @@ function submitQuickNote(){
   save('progress'); renderProgress(); closeNoteSheet();
 }
 
+function renderProgress() {
+  const list = document.getElementById('progress-list');
+  if (!inProgress.length) {
+    list.innerHTML = '<div class="empty">Nothing in progress. Start something from the Log tab.</div>';
+    return;
+  }
+  list.innerHTML = inProgress.map(item => `
+    <div class="card prog-card" id="prog-card-${item.id}">
+      <div class="card-top">
+        <div style="flex:1">
+          <div class="card-title">${item.title}</div>
+          <div class="card-meta">
+            <span class="badge ${BC[item.type]}">${TL[item.type]}</span>
+            <span style="font-size:11px;color:#555">Started ${item.startedDisplay||''}</span>
+          </div>
+          <div class="prog-notes" id="notes-${item.id}">
+            ${item.notes.map((n,i) => `<div class="prog-note"><span class="note-time">${n.time}</span><span class="note-text">${n.text}</span><button class="note-del" onclick="delNote(${item.id},${i})">✕</button></div>`).join('')}
+          </div>
+          <div class="note-input-row">
+            <input type="text" id="ni-${item.id}" placeholder="Add a note..." onkeydown="if(event.key==='Enter')addNote(${item.id})" />
+            <button class="btn-add-note" onclick="addNote(${item.id})">Add</button>
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="btn-edit" onclick="toggleEditProgress(${item.id})">Edit</button>
+          <button class="btn-danger" onclick="abandonInProgress(${item.id})">Abandon</button>
+        </div>
+      </div>
+      <div class="finish-row">
+        <div class="finish-stars" id="fsr-${item.id}">
+          ${[1,2,3,4,5].map(v=>`<span class="fstar" data-item="${item.id}" onclick="setFinishRating(${item.id},${v})">★</span>`).join('')}
+        </div>
+        <input type="hidden" id="frv-${item.id}" value="0" />
+        <input type="date" id="fd-${item.id}" value="${item.startDate||''}" style="font-size:12px;padding:4px 8px;max-width:140px;" />
+        <button class="btn btn-primary btn-sm" onclick="finishEntry(${item.id})">Finish ↗</button>
+      </div>
+      <div class="finish-status" id="fs-${item.id}"></div>
+    </div>`).join('');
+}
+
+
 function renderLibrary(){
   const list=document.getElementById('entry-list');
   let filtered=currentFilter==='all'?[...entries]:entries.filter(e=>e.type===currentFilter);
