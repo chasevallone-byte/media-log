@@ -98,11 +98,6 @@
   .sec-label:first-child { margin-top: 0; }
   .past-rec { font-size: 13px; color: #888; padding: 7px 0; border-bottom: 1px solid #1e1e1e; display: flex; justify-content: space-between; gap: 8px; }
   .past-rec-date { font-size: 11px; color: #555; white-space: nowrap; }
-  .tonight-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .tonight-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: #1a1a1a; border-radius: 8px; margin-bottom: 6px; }
-  .tonight-check { width: 18px; height: 18px; cursor: pointer; accent-color: #f0f0f0; flex-shrink: 0; }
-  .tonight-label { flex: 1; font-size: 14px; cursor: pointer; color: #f0f0f0; }
-  .tonight-type { font-size: 11px; color: #555; }
   .divider-label { font-size: 11px; color: #555; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 1rem 0 8px; }
   .series-header { font-size: 13px; font-weight: 600; color: #888; margin: 1.25rem 0 6px; padding-bottom: 6px; border-bottom: 1px solid #2a2a2a; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
   .series-entries.collapsed { display: none; }
@@ -203,8 +198,6 @@
     <button class="tab active" onclick="switchTab('log')">Log entry</button>
     <button class="tab" onclick="switchTab('progress')">In progress <span class="count" id="prog-count">0</span></button>
     <button class="tab" onclick="switchTab('library')">Library <span class="count" id="lib-count">0</span></button>
-    <button class="tab" onclick="switchTab('watchlist')">Watchlist <span class="count" id="watch-count">0</span></button>
-    <button class="tab" onclick="switchTab('recommend')">Tonight ↗</button>
   </div>
 
   <!-- LOG -->
@@ -253,38 +246,23 @@
   </div>
 
   <!-- WATCHLIST -->
-  <div id="tab-watchlist" class="section">
-    <div class="watch-add">
-      <input type="text" id="w-title" placeholder="Title" />
-      <select id="w-type"><option value="movie">Movie</option><option value="tv">TV show</option><option value="book">Book</option><option value="comic">Comic book</option><option value="game">Video game</option></select>
-      <button class="btn btn-primary btn-sm" onclick="addWatchItem()">Add</button>
+  <div id="tab-library" class="section">
+    <div class="lib-toolbar">
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="setFilter('all',event)">All</button>
+        <button class="filter-btn" onclick="setFilter('movie',event)">Movies</button>
+        <button class="filter-btn" onclick="setFilter('tv',event)">TV</button>
+        <button class="filter-btn" onclick="setFilter('book',event)">Books</button>
+        <button class="filter-btn" onclick="setFilter('comic',event)">Comics</button>
+        <button class="filter-btn" onclick="setFilter('game',event)">Games</button>
+      </div>
+      <button class="btn-export" id="export-btn" onclick="exportLog()">Export log</button>
     </div>
-    <div id="watch-msg" class="status" style="margin-top:0;margin-bottom:8px;"></div>
-    <div id="watchlist-list"></div>
+    <div id="export-msg" class="export-note"></div>
+    <div id="entry-list" style="margin-top:1rem;"></div>
   </div>
 
-  <!-- TONIGHT -->
-  <div id="tab-recommend" class="section">
-    <p style="font-size:14px;color:#888;margin-bottom:1.25rem;line-height:1.6;">Check off what's available tonight, tell me your mood, and I'll pick one.</p>
-    <div class="tonight-toolbar">
-      <div class="sec-label" style="margin:0;">Tonight's options</div>
-      <button class="btn-toggle-all" id="toggle-all-btn" onclick="toggleAllTonight()">Deselect all</button>
-    </div>
-    <div id="tonight-list"></div>
-    <div id="tonight-empty" style="display:none;font-size:13px;color:#555;margin-bottom:1rem;">Your watchlist is empty. Add things in the Watchlist tab first.</div>
-    <div class="fg" style="margin-top:1rem;margin-bottom:0.75rem;">
-      <label>How are you feeling tonight?</label>
-      <input type="text" id="rec-mood" placeholder="e.g. tired, want something light..." />
-    </div>
-    <div class="actions" style="margin-top:0.75rem;margin-bottom:1rem;">
-      <button class="btn btn-primary" onclick="getRecommendation()">Get recommendation ↗</button>
-    </div>
-    <div id="rec-output" class="rec-output placeholder">Your recommendation will appear here.</div>
-    <div id="past-recs-section" style="margin-top:1.5rem;display:none;">
-      <div class="sec-label" style="margin-top:0;">Previous recommendations</div>
-      <div id="past-recs-list"></div>
-    </div>
-  </div>
+
 </div>
 
 <script>
@@ -295,7 +273,7 @@ const HEADERS = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'A
 const TL = { movie:'Movie', tv:'TV show', book:'Book', comic:'Comic', game:'Game' };
 const BC = { movie:'badge-movie', tv:'badge-tv', book:'badge-book', comic:'badge-comic', game:'badge-game' };
 
-let entries = [], inProgress = [], watchlist = [], pastRecs = [];
+let entries = [], inProgress = [];
 let currentRating = 0, currentFilter = 'all';
 let confirmCallback = null, editRatings = {};
 let collapsedSeries = new Set();
@@ -312,7 +290,7 @@ async function dbGet(type) {
 
 async function dbSet(type, data) {
   setSyncDot('syncing');
-  const id = type==='entries'?1:type==='progress'?2:type==='watchlist'?3:4;
+  const id = type==='entries'?1:2;
   try {
     // Check if row exists first
     const check = await fetch(`${API}?type=eq.${type}&select=id`, { headers: HEADERS });
@@ -340,8 +318,8 @@ async function dbSet(type, data) {
 
 async function loadAll() {
   try {
-    const [e,p,w,r] = await Promise.all([dbGet('entries'),dbGet('progress'),dbGet('watchlist'),dbGet('pastrecs')]);
-    entries=e||[]; inProgress=p||[]; watchlist=w||[]; pastRecs=r||[];
+    const [e,p] = await Promise.all([dbGet('entries'),dbGet('progress')]);
+    entries=e||[]; inProgress=p||[];
   } catch(err) { console.error('Load error',err); }
   document.getElementById('f-completed').value = today();
   document.getElementById('f-started').value = today();
@@ -350,7 +328,7 @@ async function loadAll() {
   renderAll();
 }
 
-async function save(type) { const map={entries,progress:inProgress,watchlist,pastrecs:pastRecs}; await dbSet(type,map[type]); }
+async function save(type) { const map={entries,progress:inProgress}; await dbSet(type,map[type]); }
 
 // ── Claude API ────────────────────────────────────────────────────
 async function callClaude(prompt) {
@@ -389,11 +367,10 @@ function fmtDate(val) {
   const [y,m,d]=val.split('-');
   return `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m)-1]} ${parseInt(d)}, ${y}`;
 }
-function renderAll() { renderLibrary(); renderProgress(); renderWatchlist(); renderTonightList(); renderPastRecs(); updateCounts(); updateFab(); }
+function renderAll() { renderLibrary(); renderProgress(); updateCounts(); updateFab(); }
 function updateCounts() {
   document.getElementById('lib-count').textContent=entries.length;
   document.getElementById('prog-count').textContent=inProgress.length;
-  document.getElementById('watch-count').textContent=watchlist.filter(w=>!w.done).length;
 }
 function updateFab() { document.getElementById('fab').classList.toggle('visible',inProgress.length>0); }
 function setRating(v) { currentRating=v; document.querySelectorAll('#star-row .star').forEach((s,i)=>s.classList.toggle('lit',i<v)); }
@@ -642,110 +619,6 @@ function submitQuickNote(){
   save('progress'); renderProgress(); closeNoteSheet();
 }
 
-// ── Watchlist ─────────────────────────────────────────────────────
-function addWatchItem(){
-  const title=document.getElementById('w-title').value.trim(); if(!title){document.getElementById('watch-msg').textContent='Please enter a title.';return;}
-  watchlist.unshift({id:Date.now(),title,type:document.getElementById('w-type').value,done:false});
-  document.getElementById('w-title').value='';
-  save('watchlist'); updateCounts(); renderWatchlist(); renderTonightList();
-  document.getElementById('watch-msg').textContent=`"${title}" added.`;
-  setTimeout(()=>document.getElementById('watch-msg').textContent='',2500);
-}
-function toggleWatch(id){const item=watchlist.find(w=>w.id===id);if(item){item.done=!item.done;save('watchlist');updateCounts();renderWatchlist();renderTonightList();}}
-function delWatch(id){
-  const item=watchlist.find(w=>w.id===id); if(!item)return;
-  showConfirm('Remove from watchlist?',`"${item.title}" will be removed.`,'Remove',()=>{
-    watchlist=watchlist.filter(w=>w.id!==id);save('watchlist');updateCounts();renderWatchlist();renderTonightList();
-  });
-}
-function toggleAllTonight(){
-  const checkboxes=[...document.querySelectorAll('#tonight-list input[type=checkbox]')];
-  const allChecked=checkboxes.every(c=>c.checked);
-  checkboxes.forEach(c=>c.checked=!allChecked);
-  document.getElementById('toggle-all-btn').textContent=allChecked?'Select all':'Deselect all';
-}
-
-// ── Render ────────────────────────────────────────────────────────
-function renderWatchlist(){
-  const el=document.getElementById('watchlist-list');
-  if(!watchlist.length){el.innerHTML='<div class="empty">Nothing on your watchlist yet.</div>';return;}
-  const active=watchlist.filter(w=>!w.done),done=watchlist.filter(w=>w.done);
-  let html=active.map(w=>watchHTML(w)).join('');
-  if(done.length)html+=`<div class="divider-label">Consumed</div>`+done.map(w=>watchHTML(w)).join('');
-  el.innerHTML=html;
-}
-function watchHTML(w){
-  return `<div class="watch-item ${w.done?'done':''}">
-    <input type="checkbox" class="watch-check" ${w.done?'checked':''} onchange="toggleWatch(${w.id})" />
-    <span class="watch-title">${w.title}</span>
-    <span class="watch-type">${TL[w.type]}</span>
-    <button class="btn-danger" onclick="delWatch(${w.id})">Remove</button>
-  </div>`;
-}
-function renderTonightList(){
-  const container=document.getElementById('tonight-list'),empty=document.getElementById('tonight-empty');
-  const active=watchlist.filter(w=>!w.done);
-  if(!active.length){container.innerHTML='';empty.style.display='block';return;}
-  empty.style.display='none';
-  container.innerHTML=active.map(w=>`
-    <div class="tonight-item">
-      <input type="checkbox" class="tonight-check" id="tn-${w.id}" checked />
-      <label class="tonight-label" for="tn-${w.id}">${w.title}</label>
-      <span class="tonight-type">${TL[w.type]}</span>
-    </div>`).join('');
-  document.getElementById('toggle-all-btn').textContent='Deselect all';
-}
-function renderPastRecs(){
-  const section=document.getElementById('past-recs-section'),list=document.getElementById('past-recs-list');
-  if(!pastRecs.length){section.style.display='none';return;}
-  section.style.display='block';
-  list.innerHTML=pastRecs.slice(0,10).map(r=>`<div class="past-rec"><span>${r.pick} <span style="color:#555">(${TL[r.type]||r.type})</span></span><span class="past-rec-date">${r.date}</span></div>`).join('');
-}
-function renderProgress(){
-  const list=document.getElementById('progress-list');
-  if(!inProgress.length){list.innerHTML='<div class="empty">Nothing in progress. Start something from the Log entry tab.</div>';return;}
-  list.innerHTML=inProgress.map(item=>`
-    <div class="card inprog" id="prog-card-${item.id}">
-      <div class="card-top">
-        <div style="flex:1">
-          <div class="card-title">${item.title}</div>
-          <div class="card-meta">
-            <span class="badge ${BC[item.type]}">${TL[item.type]}</span>
-            <span class="badge badge-prog">In progress</span>
-            <span style="font-size:11px;color:#555">Started ${item.startedDisplay||''}</span>
-          </div>
-        </div>
-        <div style="display:flex;gap:6px;">
-          <button class="btn-edit" onclick="toggleEditProgress(${item.id})">Edit</button>
-          <button class="btn-abandon" onclick="abandonInProgress(${item.id})">Abandon</button>
-        </div>
-      </div>
-      <div class="note-thread">${item.notes.map((n,i)=>`
-        <div class="note-item">
-          <span>${n.text}</span>
-          <span style="display:flex;align-items:flex-start;gap:8px;flex-shrink:0;">
-            <span class="note-time">${n.time}</span>
-            <button class="note-del" onclick="delNote(${item.id},${i})">✕</button>
-          </span>
-        </div>`).join('')}
-      </div>
-      <div class="note-input-row" style="flex-direction:column;gap:6px;">
-        <textarea id="ni-${item.id}" placeholder="Add a thought..." rows="2" style="min-height:60px;resize:vertical;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addNote(${item.id})}"></textarea>
-        <button class="btn btn-secondary btn-sm" style="align-self:flex-end;" onclick="addNote(${item.id})">Add note</button>
-      </div>
-      <div class="finish-zone">
-        <label style="display:block;margin-bottom:4px;">Done? Rate it and generate your writeup.</label>
-        <div class="finish-stars">${[1,2,3,4,5].map((v,i)=>`<span class="finish-star fstar" data-item="${item.id}" data-v="${v}" onclick="setFinishRating(${item.id},${v})">★</span>`).join('')}</div>
-        <input type="hidden" id="frv-${item.id}" value="0" />
-        <div class="fg" style="margin-bottom:12px;max-width:200px;">
-          <label>Date completed</label>
-          <input type="date" id="fd-${item.id}" value="${today()}" />
-        </div>
-        <button class="btn-finish" onclick="finishEntry(${item.id})">Finished — generate writeup ↗</button>
-        <div id="fs-${item.id}" style="margin-top:8px;font-size:13px;color:#888;min-height:18px;"></div>
-      </div>
-    </div>`).join('');
-}
 function renderLibrary(){
   const list=document.getElementById('entry-list');
   let filtered=currentFilter==='all'?[...entries]:entries.filter(e=>e.type===currentFilter);
@@ -806,35 +679,11 @@ function exportLog(){
     setTimeout(()=>{btn.textContent='Export log';btn.classList.remove('copied');document.getElementById('export-msg').textContent='';},3000);
   }).catch(()=>{document.getElementById('export-msg').textContent='Could not access clipboard.';});
 }
-async function getRecommendation(){
-  const mood=document.getElementById('rec-mood').value.trim(),out=document.getElementById('rec-output');
-  const checked=[...document.querySelectorAll('#tonight-list input[type=checkbox]:checked')];
-  if(!checked.length){out.className='rec-output placeholder';out.textContent="Check off at least one option from tonight's list above.";return;}
-  const tonightOptions=checked.map(cb=>{const id=parseInt(cb.id.replace('tn-',''));const item=watchlist.find(w=>w.id===id);return item?`- ${item.title} (${TL[item.type]})`:null;}).filter(Boolean).join('\n');
-  if(!entries.length&&!pastRecs.length){out.className='rec-output placeholder';out.textContent='Add some library entries first so I can learn your taste.';return;}
-  out.className='rec-output';out.innerHTML='<span class="loading">Thinking</span>';
-  const logSummary=entries.map(e=>`- ${e.title} (${TL[e.type]}) — ${e.rating}/5${e.completedDate?`, completed ${fmtDate(e.completedDate)}`:''}${e.notes?`. Notes: ${e.notes}`:''}`).join('\n');
-  const pastRecsSummary=pastRecs.length?`\nPrevious recommendations (avoid repeating):\n${pastRecs.slice(0,10).map(r=>`- ${r.pick} (${r.date})`).join('\n')}`:'';
-  const prompt=`You are a personal media recommendation assistant. Pick ONE item from tonight's available options.\n\nTonight's options (ONLY pick from this list):\n${tonightOptions}\n\nMedia log:\n${logSummary}\n${pastRecsSummary}\n\nTonight's mood: ${mood||'not specified'}\n\nRules:\n- Pick from tonight's options only\n- Avoid repeating recent recommendations\n- Factor in mood, rating patterns, recency, and what notes reveal about taste\n- Conversational, under 100 words, no bullet points\n- End with: "My pick: [Title]"`;
-  try {
-    const text=await callClaude(prompt);
-    out.className='rec-output'; out.innerHTML=renderMarkdown(text);
-    const match=text.match(/My pick:\s*(.+)/i);
-    if(match){
-      const pickedTitle=match[1].trim();
-      const mi=watchlist.find(w=>pickedTitle.toLowerCase().includes(w.title.toLowerCase()));
-      pastRecs.unshift({pick:mi?mi.title:pickedTitle,type:mi?mi.type:'unknown',date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'})});
-      if(pastRecs.length>30)pastRecs=pastRecs.slice(0,30);
-      save('pastrecs');renderPastRecs();
-    }
-  }catch(e){out.className='rec-output placeholder';out.textContent='Something went wrong. Try again.';}
-}
 function switchTab(name){
-  const names=['log','progress','library','watchlist','recommend'];
+  const names=['log','progress','library'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
-  if(name==='recommend')renderTonightList();
 }
 function showDoom(){
   const overlay=document.getElementById('doom-overlay');
