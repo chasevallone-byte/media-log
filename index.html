@@ -41,7 +41,8 @@
   .btn-secondary { background: transparent; border: 1px solid #3a3a3a; color: #f0f0f0; }
   .btn-secondary:active { background: #1a1a1a; }
   .btn-sm { font-size: 13px; padding: 8px 14px; }
-  .btn-danger { background: transparent; border: 1px solid #2e2e2e; color: #888; font-size: 12px; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+  .btn-danger { background: transparent; border: 1px solid #2e2e2e; color: #888; font-size: 12px; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .btn-danger:hover { border-color: #c0392b; color: #c0392b; }
   .btn-abandon { background: transparent; border: 1px solid #7a2a2a; color: #e07070; font-size: 12px; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-family: inherit; }
   .btn-edit { background: transparent; border: 1px solid #2a4a7a; color: #70a0e0; font-size: 12px; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-family: inherit; }
   .btn-finish { background: transparent; border: 1px solid #27ae60; color: #2ecc71; font-size: 13px; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-family: inherit; }
@@ -647,7 +648,7 @@ function renderProgress() {
         </div>
         <input type="hidden" id="frv-${item.id}" value="0" />
         <input type="date" id="fd-${item.id}" value="${item.startDate||''}" style="font-size:12px;padding:4px 8px;max-width:140px;" />
-        <button class="btn btn-primary btn-sm" onclick="finishEntry(${item.id})">Finish ↗</button>
+        <button class="btn-finish" onclick="finishEntry(${item.id})">Finished — generate writeup ↗</button>
       </div>
       <div class="finish-status" id="fs-${item.id}"></div>
     </div>`).join('');
