@@ -204,7 +204,7 @@
 
 <div class="app" style="display:none;" id="main-app">
   <h1>Media Log <span class="sync-dot" id="sync-dot"></span></h1>
-  <p class="subtitle">Do it, bruh.</p>
+  <p class="subtitle">Track what you're consuming, get nightly picks.</p>
 
   <div class="tabs">
     <button class="tab active" onclick="switchTab('log')">Log entry</button>
@@ -659,11 +659,20 @@ function renderLibrary(){
   const list=document.getElementById('entry-list');
   let filtered=currentFilter==='all'?[...entries]:entries.filter(e=>e.type===currentFilter);
   if(!filtered.length){list.innerHTML='<div class="empty">No entries yet.</div>';return;}
+  function toISO(d) {
+    if (!d) return '';
+    if (/^\d{4}-\d{2}-\d{2}/.test(d)) return d;
+    const m = d.match(/(\w{3})\s+(\d+),\s+(\d{4})/);
+    if (!m) return d;
+    const mo = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+    return `${m[3]}-${mo[m[1]]}-${m[2].padStart(2,'0')}`;
+  }
   filtered.sort((a,b)=>{
-    if(!a.completedDate&&!b.completedDate)return 0;
-    if(!a.completedDate)return 1;
-    if(!b.completedDate)return -1;
-    return b.completedDate.localeCompare(a.completedDate);
+    const da = toISO(a.completedDate), db = toISO(b.completedDate);
+    if(!da&&!db)return 0;
+    if(!da)return 1;
+    if(!db)return -1;
+    return db.localeCompare(da);
   });
   list.innerHTML=filtered.map(e=>entryCardHTML(e)).join('');
 }
