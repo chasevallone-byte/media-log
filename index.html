@@ -275,13 +275,20 @@ async function loadFinalBruh() {
       fetch(`${FB_API}?type=eq.categories&select=*`, {headers: HEADERS}),
       fetch(`${FB_API}?type=eq.items&select=*`, {headers: HEADERS})
     ]);
+    console.log('FB categories status:', cRes.status);
+    console.log('FB items status:', iRes.status);
     const cRows = await cRes.json();
     const iRows = await iRes.json();
+    console.log('FB categories rows:', cRows.length, cRows);
+    console.log('FB items rows:', iRows.length);
     fbCategories = cRows.length ? cRows[0].data : [];
     fbItems = iRows.length ? iRows[0].data : [];
-    // Populate any existing dropdowns after data loads
+    console.log('fbCategories:', fbCategories.length, 'fbItems:', fbItems.length);
     populateFbDropdowns();
-  } catch(e) { fbCategories = []; fbItems = []; }
+  } catch(e) { 
+    console.error('loadFinalBruh error:', e);
+    fbCategories = []; fbItems = []; 
+  }
 }
 
 function populateFbDropdowns() {
