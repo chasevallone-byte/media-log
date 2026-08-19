@@ -388,6 +388,8 @@ async function loadAll() {
   document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('main-app').style.display = 'block';
   renderAll();
+  // Load Final Bruh data after render so dropdowns populate
+  await loadFinalBruh();
 }
 
 async function save(type) { const map={entries,progress:inProgress}; await dbSet(type,map[type]); }
