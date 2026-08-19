@@ -264,6 +264,53 @@
 const SUPABASE_URL = 'https://phrmkxxcfdesollankvh.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBocm1reHhjZmRlc29sbGFua3ZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MzEwNDEsImV4cCI6MjA5MjMwNzA0MX0.V5631_Ex9Ds6OQNSKlmR8BqfdYM_KG8RVFI2WULrFf0';
 const API = `${SUPABASE_URL}/rest/v1/media_log`;
+
+// ── Final Bruh connection ─────────────────────────────────────────
+const FB_API = 'https://phrmkxxcfdesollankvh.supabase.co/rest/v1/final_bruh';
+let fbItems = [], fbCategories = [];
+
+async function loadFinalBruh() {
+  try {
+    const [cRes, iRes] = await Promise.all([
+      fetch(`${FB_API}?type=eq.categories&select=*`, {headers: HEADERS}),
+      fetch(`${FB_API}?type=eq.items&select=*`, {headers: HEADERS})
+    ]);
+    const cRows = await cRes.json();
+    const iRows = await iRes.json();
+    fbCategories = cRows.length ? cRows[0].data : [];
+    fbItems = iRows.length ? iRows[0].data : [];
+  } catch(e) { fbCategories = []; fbItems = []; }
+}
+
+function getFbTops() {
+  return fbCategories.map(cat => {
+    const top = fbItems.filter(i=>i.category===cat).sort((a,b)=>a.position-b.position)[0];
+    return top ? {category: cat, title: top.title, id: top.id} : null;
+  }).filter(Boolean);
+}
+
+async function removeFbItem(id) {
+  try {
+    const newItems = fbItems.filter(i=>i.id!==id);
+    // Renumber positions within each category
+    const cats = [...new Set(newItems.map(i=>i.category))];
+    cats.forEach(cat => {
+      const catItems = newItems.filter(i=>i.category===cat).sort((a,b)=>a.position-b.position);
+      catItems.forEach((item,idx) => item.position = idx);
+    });
+    const check = await fetch(`${FB_API}?type=eq.items&select=id`, {headers: HEADERS});
+    const rows = await check.json();
+    if (rows.length > 0) {
+      await fetch(`${FB_API}?type=eq.items`, {
+        method: 'PATCH',
+        headers: {...HEADERS, 'Prefer': 'return=minimal'},
+        body: JSON.stringify({data: newItems, updated_at: new Date().toISOString()})
+      });
+    }
+    fbItems = newItems;
+  } catch(e) { console.error('Final Bruh update failed:', e); }
+}
+
 const HEADERS = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
 const TL = { movie:'Movie', tv:'TV show', book:'Book', comic:'Comic', game:'Game' };
 const BC = { movie:'badge-movie', tv:'badge-tv', book:'badge-book', comic:'badge-comic', game:'badge-game' };
@@ -589,6 +636,9 @@ Write only the final summary. No preamble, no title, no label.`;
     entries.unshift({id:Date.now(),title:item.title,type:item.type,rating,startDate:item.startDate||null,completedDate:completedVal||null,mood:'',notes:summary,loggedDate:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})});
     inProgress=inProgress.filter(i=>i.id!==id);
     await Promise.all([save('entries'),save('progress')]);
+    // Optionally remove from Final Bruh
+    const fbSelect = document.getElementById('fb-link-'+id);
+    if (fbSelect && fbSelect.value) { await removeFbItem(fbSelect.value); }
     showDoom();
     setTimeout(()=>{ updateCounts(); renderLibrary(); renderProgress(); updateFab(); switchTab('library'); },2800);
   } catch(e){statusEl.textContent='Something went wrong. Try again.';}
@@ -648,6 +698,13 @@ function renderProgress() {
         </div>
         <input type="hidden" id="frv-${item.id}" value="0" />
         <input type="date" id="fd-${item.id}" value="${item.startDate||''}" style="font-size:12px;padding:4px 8px;max-width:140px;" />
+        <div class="fg" style="margin-bottom:10px;">
+          <label style="font-size:10px;color:#555;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Also remove from Final Bruh? (optional)</label>
+          <select id="fb-link-${item.id}" style="font-size:13px;padding:7px 10px;margin-top:4px;">
+            <option value="">— No, skip —</option>
+            ${getFbTops().map(t=>`<option value="${t.id}">${t.category}: ${t.title}</option>`).join('')}
+          </select>
+        </div>
         <button class="btn-finish" onclick="finishEntry(${item.id})">Finished — generate writeup ↗</button>
       </div>
       <div class="finish-status" id="fs-${item.id}"></div>
