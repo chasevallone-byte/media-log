@@ -633,7 +633,7 @@ function renderProgress() {
             ${item.notes.map((n,i) => `<div class="prog-note"><span class="note-time">${n.time}</span><span class="note-text">${n.text}</span><button class="note-del" onclick="delNote(${item.id},${i})">✕</button></div>`).join('')}
           </div>
           <div class="note-input-row">
-            <input type="text" id="ni-${item.id}" placeholder="Add a note..." onkeydown="if(event.key==='Enter')addNote(${item.id})" />
+            <textarea id="ni-${item.id}" placeholder="Add a note..." style="min-height:80px;resize:vertical;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addNote(${item.id})}"></textarea>
             <button class="btn-add-note" onclick="addNote(${item.id})">Add</button>
           </div>
         </div>
