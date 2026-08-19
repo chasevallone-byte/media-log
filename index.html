@@ -279,7 +279,20 @@ async function loadFinalBruh() {
     const iRows = await iRes.json();
     fbCategories = cRows.length ? cRows[0].data : [];
     fbItems = iRows.length ? iRows[0].data : [];
+    // Populate any existing dropdowns after data loads
+    populateFbDropdowns();
   } catch(e) { fbCategories = []; fbItems = []; }
+}
+
+function populateFbDropdowns() {
+  const tops = getFbTops();
+  const opts = '<option value="">— No, skip —</option>' + 
+    tops.map(t=>`<option value="${t.id}">${t.category}: ${t.title}</option>`).join('');
+  document.querySelectorAll('[id^="fb-link-"]').forEach(sel => {
+    const current = sel.value;
+    sel.innerHTML = opts;
+    if (current) sel.value = current;
+  });
 }
 
 function getFbTops() {
@@ -702,14 +715,14 @@ function renderProgress() {
           <label style="font-size:10px;color:#555;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Also remove from Final Bruh? (optional)</label>
           <select id="fb-link-${item.id}" style="font-size:13px;padding:7px 10px;margin-top:4px;">
             <option value="">— No, skip —</option>
-            ${getFbTops().map(t=>`<option value="${t.id}">${t.category}: ${t.title}</option>`).join('')}
           </select>
         </div>
         <button class="btn-finish" onclick="finishEntry(${item.id})">Finished — generate writeup ↗</button>
       </div>
       <div class="finish-status" id="fs-${item.id}"></div>
     </div>`).join('');
-}
+
+  populateFbDropdowns();}
 
 
 function renderLibrary(){
