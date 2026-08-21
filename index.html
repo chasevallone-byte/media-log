@@ -736,7 +736,9 @@ function renderProgress() {
 
 function renderLibrary(){
   const list=document.getElementById('entry-list');
+  const q=(document.getElementById('lib-search')?document.getElementById('lib-search').value||'':'').toLowerCase().trim();
   let filtered=currentFilter==='all'?[...entries]:entries.filter(e=>e.type===currentFilter);
+  if(q) filtered=filtered.filter(e=>e.title.toLowerCase().includes(q)||(e.notes||'').toLowerCase().includes(q));
   if(!filtered.length){list.innerHTML='<div class="empty">No entries yet.</div>';return;}
   function toISO(d) {
     if (!d) return '';
@@ -785,6 +787,11 @@ function confirmDelEntry(id){
     entries=entries.filter(e=>e.id!==id);save('entries');updateCounts();renderLibrary();
   });
 }
+function clearLibSearch(){
+  document.getElementById('lib-search').value='';
+  renderLibrary();
+}
+
 function setFilter(f,e){
   currentFilter=f;
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
