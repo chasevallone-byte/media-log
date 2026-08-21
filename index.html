@@ -254,6 +254,10 @@
       <button class="btn-export" id="export-btn" onclick="exportLog()">Export log</button>
     </div>
     <div id="export-msg" class="export-note"></div>
+    <div class="search-wrap" style="margin-top:0.75rem;">
+      <input type="text" id="lib-search" placeholder="Search your library..." oninput="renderLibrary()" style="width:100%;" />
+      <button class="search-clear" onclick="clearLibSearch()">&#10005;</button>
+    </div>
     <div id="entry-list" style="margin-top:1rem;"></div>
   </div>
 
