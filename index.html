@@ -271,27 +271,34 @@ const API = `${SUPABASE_URL}/rest/v1/media_log`;
 
 // ── Final Bruh connection ─────────────────────────────────────────
 const FB_API = 'https://phrmkxxcfdesollankvh.supabase.co/rest/v1/final_bruh';
-let fbItems = [], fbCategories = [];
+const FB_SECONDARY_THRESHOLD = 5;
+let fbItems = [], fbCategories = [], fbCategoryTiers = {}, fbPrimaryStreaks = {};
 
 async function loadFinalBruh() {
   try {
-    const [cRes, iRes] = await Promise.all([
+    const [cRes, iRes, tRes, sRes] = await Promise.all([
       fetch(`${FB_API}?type=eq.categories&select=*`, {headers: HEADERS}),
-      fetch(`${FB_API}?type=eq.items&select=*`, {headers: HEADERS})
+      fetch(`${FB_API}?type=eq.items&select=*`, {headers: HEADERS}),
+      fetch(`${FB_API}?type=eq.categoryTiers&select=*`, {headers: HEADERS}),
+      fetch(`${FB_API}?type=eq.primaryStreaks&select=*`, {headers: HEADERS})
     ]);
     console.log('FB categories status:', cRes.status);
     console.log('FB items status:', iRes.status);
     const cRows = await cRes.json();
     const iRows = await iRes.json();
+    const tRows = await tRes.json();
+    const sRows = await sRes.json();
     console.log('FB categories rows:', cRows.length, cRows);
     console.log('FB items rows:', iRows.length);
     fbCategories = cRows.length ? cRows[0].data : [];
     fbItems = iRows.length ? iRows[0].data : [];
+    fbCategoryTiers = tRows.length ? tRows[0].data : {};
+    fbPrimaryStreaks = sRows.length ? sRows[0].data : {};
     console.log('fbCategories:', fbCategories.length, 'fbItems:', fbItems.length);
     populateFbDropdowns();
   } catch(e) { 
     console.error('loadFinalBruh error:', e);
-    fbCategories = []; fbItems = []; 
+    fbCategories = []; fbItems = []; fbCategoryTiers = {}; fbPrimaryStreaks = {};
   }
 }
 
@@ -313,8 +320,25 @@ function getFbTops() {
   }).filter(Boolean);
 }
 
+async function fbDbSet(type, data) {
+  const check = await fetch(`${FB_API}?type=eq.${type}&select=id`, {headers: HEADERS});
+  const rows = await check.json();
+  if (rows.length > 0) {
+    await fetch(`${FB_API}?type=eq.${type}`, {
+      method: 'PATCH', headers: {...HEADERS, 'Prefer': 'return=minimal'},
+      body: JSON.stringify({data, updated_at: new Date().toISOString()})
+    });
+  } else {
+    await fetch(FB_API, {
+      method: 'POST', headers: {...HEADERS, 'Prefer': 'return=minimal'},
+      body: JSON.stringify({id: Date.now(), type, data, updated_at: new Date().toISOString()})
+    });
+  }
+}
+
 async function removeFbItem(id) {
   try {
+    const removedItem = fbItems.find(i=>i.id===id);
     const newItems = fbItems.filter(i=>i.id!==id);
     // Renumber positions within each category
     const cats = [...new Set(newItems.map(i=>i.category))];
@@ -322,15 +346,19 @@ async function removeFbItem(id) {
       const catItems = newItems.filter(i=>i.category===cat).sort((a,b)=>a.position-b.position);
       catItems.forEach((item,idx) => item.position = idx);
     });
-    const check = await fetch(`${FB_API}?type=eq.items&select=id`, {headers: HEADERS});
-    const rows = await check.json();
-    if (rows.length > 0) {
-      await fetch(`${FB_API}?type=eq.items`, {
-        method: 'PATCH',
-        headers: {...HEADERS, 'Prefer': 'return=minimal'},
-        body: JSON.stringify({data: newItems, updated_at: new Date().toISOString()})
-      });
+
+    // Mirror Final Bruh's own markDone logic, so a completion triggered from here
+    // still counts toward (or pays off) the primary/secondary streak system.
+    if (removedItem) {
+      const tier = fbCategoryTiers[removedItem.category] || 'primary';
+      if (tier === 'secondary') {
+        Object.keys(fbPrimaryStreaks).forEach(c => { if (fbPrimaryStreaks[c] >= FB_SECONDARY_THRESHOLD) fbPrimaryStreaks[c] = 0; });
+      } else {
+        fbPrimaryStreaks[removedItem.category] = (fbPrimaryStreaks[removedItem.category] || 0) + 1;
+      }
     }
+
+    await Promise.all([fbDbSet('items', newItems), fbDbSet('primaryStreaks', fbPrimaryStreaks)]);
     fbItems = newItems;
   } catch(e) { console.error('Final Bruh update failed:', e); }
 }
