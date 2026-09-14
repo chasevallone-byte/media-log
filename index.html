@@ -272,15 +272,16 @@ const API = `${SUPABASE_URL}/rest/v1/media_log`;
 // ── Final Bruh connection ─────────────────────────────────────────
 const FB_API = 'https://phrmkxxcfdesollankvh.supabase.co/rest/v1/final_bruh';
 const FB_SECONDARY_THRESHOLD = 5;
-let fbItems = [], fbCategories = [], fbCategoryTiers = {}, fbPrimaryStreaks = {};
+let fbItems = [], fbCategories = [], fbCategoryTiers = {}, fbPrimaryStreaks = {}, fbWildcardLocked = {};
 
 async function loadFinalBruh() {
   try {
-    const [cRes, iRes, tRes, sRes] = await Promise.all([
+    const [cRes, iRes, tRes, sRes, wRes] = await Promise.all([
       fetch(`${FB_API}?type=eq.categories&select=*`, {headers: HEADERS}),
       fetch(`${FB_API}?type=eq.items&select=*`, {headers: HEADERS}),
       fetch(`${FB_API}?type=eq.categoryTiers&select=*`, {headers: HEADERS}),
-      fetch(`${FB_API}?type=eq.primaryStreaks&select=*`, {headers: HEADERS})
+      fetch(`${FB_API}?type=eq.primaryStreaks&select=*`, {headers: HEADERS}),
+      fetch(`${FB_API}?type=eq.wildcardLocked&select=*`, {headers: HEADERS})
     ]);
     console.log('FB categories status:', cRes.status);
     console.log('FB items status:', iRes.status);
@@ -288,17 +289,19 @@ async function loadFinalBruh() {
     const iRows = await iRes.json();
     const tRows = await tRes.json();
     const sRows = await sRes.json();
+    const wRows = await wRes.json();
     console.log('FB categories rows:', cRows.length, cRows);
     console.log('FB items rows:', iRows.length);
     fbCategories = cRows.length ? cRows[0].data : [];
     fbItems = iRows.length ? iRows[0].data : [];
     fbCategoryTiers = tRows.length ? tRows[0].data : {};
     fbPrimaryStreaks = sRows.length ? sRows[0].data : {};
+    fbWildcardLocked = wRows.length ? wRows[0].data : {};
     console.log('fbCategories:', fbCategories.length, 'fbItems:', fbItems.length);
     populateFbDropdowns();
   } catch(e) { 
     console.error('loadFinalBruh error:', e);
-    fbCategories = []; fbItems = []; fbCategoryTiers = {}; fbPrimaryStreaks = {};
+    fbCategories = []; fbItems = []; fbCategoryTiers = {}; fbPrimaryStreaks = {}; fbWildcardLocked = {};
   }
 }
 
@@ -348,17 +351,20 @@ async function removeFbItem(id) {
     });
 
     // Mirror Final Bruh's own markDone logic, so a completion triggered from here
-    // still counts toward (or pays off) the primary/secondary streak system.
+    // still counts toward (or pays off) the primary/secondary streak system,
+    // and clears a Wild Card lock the same way completing it in Final Bruh would.
     if (removedItem) {
       const tier = fbCategoryTiers[removedItem.category] || 'primary';
       if (tier === 'secondary') {
         Object.keys(fbPrimaryStreaks).forEach(c => { if (fbPrimaryStreaks[c] >= FB_SECONDARY_THRESHOLD) fbPrimaryStreaks[c] = 0; });
+      } else if (tier === 'wildcard') {
+        if (fbWildcardLocked[removedItem.category] === id) delete fbWildcardLocked[removedItem.category];
       } else {
         fbPrimaryStreaks[removedItem.category] = (fbPrimaryStreaks[removedItem.category] || 0) + 1;
       }
     }
 
-    await Promise.all([fbDbSet('items', newItems), fbDbSet('primaryStreaks', fbPrimaryStreaks)]);
+    await Promise.all([fbDbSet('items', newItems), fbDbSet('primaryStreaks', fbPrimaryStreaks), fbDbSet('wildcardLocked', fbWildcardLocked)]);
     fbItems = newItems;
   } catch(e) { console.error('Final Bruh update failed:', e); }
 }
