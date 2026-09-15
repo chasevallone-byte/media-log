@@ -551,9 +551,10 @@ function startInProgress() {
     const proceed=confirm(`"${title}" is already in ${where}. Add it anyway?`);
     if(!proceed)return;
   }
+  const resolvedStart = document.getElementById('f-started').value || today();
   inProgress.unshift({ id:Date.now(), title, type:document.getElementById('f-type').value,
-    startDate:document.getElementById('f-started').value||today(), notes:[],
-    startedDisplay:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) });
+    startDate:resolvedStart, notes:[],
+    startedDisplay:fmtDate(resolvedStart) });
   save('progress'); clearForm(); updateCounts(); renderProgress(); updateFab(); switchTab('progress');
 }
 
