@@ -272,16 +272,18 @@ const API = `${SUPABASE_URL}/rest/v1/media_log`;
 // ── Final Bruh connection ─────────────────────────────────────────
 const FB_API = 'https://phrmkxxcfdesollankvh.supabase.co/rest/v1/final_bruh';
 const FB_SECONDARY_THRESHOLD = 5;
-let fbItems = [], fbCategories = [], fbCategoryTiers = {}, fbPrimaryStreaks = {}, fbWildcardLocked = {};
+const FB_WILDCARD_ODDS = 1/8;
+let fbItems = [], fbCategories = [], fbCategoryTiers = {}, fbPrimaryStreaks = {}, fbWildcardLocked = {}, fbRandomSelected = [];
 
 async function loadFinalBruh() {
   try {
-    const [cRes, iRes, tRes, sRes, wRes] = await Promise.all([
+    const [cRes, iRes, tRes, sRes, wRes, rRes] = await Promise.all([
       fetch(`${FB_API}?type=eq.categories&select=*`, {headers: HEADERS}),
       fetch(`${FB_API}?type=eq.items&select=*`, {headers: HEADERS}),
       fetch(`${FB_API}?type=eq.categoryTiers&select=*`, {headers: HEADERS}),
       fetch(`${FB_API}?type=eq.primaryStreaks&select=*`, {headers: HEADERS}),
-      fetch(`${FB_API}?type=eq.wildcardLocked&select=*`, {headers: HEADERS})
+      fetch(`${FB_API}?type=eq.wildcardLocked&select=*`, {headers: HEADERS}),
+      fetch(`${FB_API}?type=eq.randomCategories&select=*`, {headers: HEADERS})
     ]);
     console.log('FB categories status:', cRes.status);
     console.log('FB items status:', iRes.status);
@@ -290,6 +292,7 @@ async function loadFinalBruh() {
     const tRows = await tRes.json();
     const sRows = await sRes.json();
     const wRows = await wRes.json();
+    const rRows = await rRes.json();
     console.log('FB categories rows:', cRows.length, cRows);
     console.log('FB items rows:', iRows.length);
     fbCategories = cRows.length ? cRows[0].data : [];
@@ -297,11 +300,12 @@ async function loadFinalBruh() {
     fbCategoryTiers = tRows.length ? tRows[0].data : {};
     fbPrimaryStreaks = sRows.length ? sRows[0].data : {};
     fbWildcardLocked = wRows.length ? wRows[0].data : {};
+    fbRandomSelected = rRows.length ? rRows[0].data : fbCategories.slice();
     console.log('fbCategories:', fbCategories.length, 'fbItems:', fbItems.length);
     populateFbDropdowns();
   } catch(e) { 
     console.error('loadFinalBruh error:', e);
-    fbCategories = []; fbItems = []; fbCategoryTiers = {}; fbPrimaryStreaks = {}; fbWildcardLocked = {};
+    fbCategories = []; fbItems = []; fbCategoryTiers = {}; fbPrimaryStreaks = {}; fbWildcardLocked = {}; fbRandomSelected = [];
   }
 }
 
@@ -361,6 +365,25 @@ async function removeFbItem(id) {
         if (fbWildcardLocked[removedItem.category] === id) delete fbWildcardLocked[removedItem.category];
       } else {
         fbPrimaryStreaks[removedItem.category] = (fbPrimaryStreaks[removedItem.category] || 0) + 1;
+      }
+
+      // Roll Wild Card activation once per completion, same as Final Bruh's own markDone:
+      // skip the category just acted on, skip while debt is active, respect the Include
+      // Categories filter.
+      const fbDebtActive = Object.values(fbPrimaryStreaks).some(v => v >= FB_SECONDARY_THRESHOLD);
+      if (!fbDebtActive) {
+        fbCategories.forEach(c => {
+          if (c === removedItem.category) return;
+          if (!fbRandomSelected.includes(c)) return;
+          if ((fbCategoryTiers[c]||'primary') !== 'wildcard') return;
+          if (fbWildcardLocked[c]) return;
+          const catItems = newItems.filter(i => i.category === c);
+          if (!catItems.length) return;
+          if (Math.random() < FB_WILDCARD_ODDS) {
+            const chosen = catItems[Math.floor(Math.random() * catItems.length)];
+            fbWildcardLocked[c] = chosen.id;
+          }
+        });
       }
     }
 
